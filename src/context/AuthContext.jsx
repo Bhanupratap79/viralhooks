@@ -17,39 +17,50 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // Check if this is an auth callback (code in URL)
-    const params = new URLSearchParams(window.location.search)
-    const hasAuthCode = params.has('code')
-    const hasError = params.get('error')
+    async function init() {
+      // Check if this is an auth callback (code in URL)
+      const params = new URLSearchParams(window.location.search)
+      const hasAuthCode = params.has('code')
+      const hasError = params.get('error')
 
-    if (hasError) {
-      setVerifyError(params.get('error_description') || 'Verification failed')
-      setLoading(false)
-      // Clean the URL
-      window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-      return
-    }
+      if (hasError) {
+        setVerifyError(params.get('error_description') || 'Verification failed')
+        setLoading(false)
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+        return
+      }
 
-    if (hasAuthCode) {
-      setVerifying(true)
-    }
+      if (hasAuthCode) {
+        setVerifying(true)
+        // Explicitly exchange the PKCE code for a session
+        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(window.location.href)
+        if (error) {
+          setVerifyError(error.message)
+          setLoading(false)
+          setVerifying(false)
+        } else if (session?.user) {
+          setUser(session.user)
+          await fetchProfile(session.user.id, session.user.email)
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+          return
+        }
+      }
 
-    // Initialize session (this handles PKCE code exchange internally)
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        setVerifyError(error.message)
-      } else if (session?.user) {
+      // Try to get existing session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user.id, session.user.email)
+        await fetchProfile(session.user.id, session.user.email)
       } else {
         setLoading(false)
         setVerifying(false)
-        // Clean URL params if any
         if (hasAuthCode) {
           window.history.replaceState({}, '', window.location.pathname + window.location.hash)
         }
       }
-    })
+    }
+
+    init()
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -58,7 +69,6 @@ export function AuthProvider({ children }) {
         fetchProfile(session.user.id, session.user.email)
         setVerifying(false)
         setVerifyError('')
-        // Clean URL params after successful auth
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           window.history.replaceState({}, '', window.location.pathname + window.location.hash)
         }
