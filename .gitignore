@@ -15,6 +15,7 @@
 .idea
 .vscode/*
 dist
+dist
 dist-ssr
 lerna-debug.log*
 logs
