@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import PageTransition from '../components/PageTransition.jsx'
 
 export default function AdminPage() {
-  const { user, profile, isAdmin, loading: authLoading, setProfile } = useAuth()
+  const { user, profile, isAdmin, isOwner, loading: authLoading, setProfile } = useAuth()
   const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,41 +16,6 @@ export default function AdminPage() {
   const [notifMsg, setNotifMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [notifSent, setNotifSent] = useState(false)
-  const [claiming, setClaiming] = useState(false)
-  const [claimError, setClaimError] = useState('')
-  const [claimed, setClaimed] = useState(false)
-
-  async function handleClaimOwnership() {
-    setClaiming(true)
-    setClaimError('')
-    try {
-      // Check if any admin exists
-      const { data: existingAdmins } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'admin')
-        .limit(1)
-
-      if (existingAdmins && existingAdmins.length > 0) {
-        setClaimError('An admin already exists. Ask them to upgrade your role.')
-        setClaiming(false)
-        return
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: 'admin' })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      setProfile({ ...profile, role: 'admin' })
-      setClaimed(true)
-    } catch (err) {
-      setClaimError(err.message)
-    }
-    setClaiming(false)
-  }
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -59,10 +24,10 @@ export default function AdminPage() {
   }, [user, authLoading, navigate])
 
   useEffect(() => {
-    if (isAdmin || claimed) {
+    if (isAdmin || (isOwner && user)) {
       fetchUsers()
     }
-  }, [isAdmin, claimed])
+  }, [isAdmin, isOwner, user])
 
   async function fetchUsers() {
     try {
@@ -128,8 +93,8 @@ export default function AdminPage() {
     return null // will redirect to login
   }
 
-  // Non-admin view: show claim ownership prompt
-  if (!isAdmin && !claimed) {
+  // Non-owner, non-admin — access denied
+  if (!isAdmin && !isOwner) {
     return (
       <PageTransition>
         <div className="min-h-screen pt-24 pb-20 px-4 flex items-center justify-center">
@@ -138,37 +103,39 @@ export default function AdminPage() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 text-center"
           >
-            <Shield className="w-16 h-16 text-accent mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white mb-2">Admin Panel</h1>
-            <p className="text-gray-400 text-sm mb-6">
-              Only admins can access this page. If you're the project owner, claim ownership below.
+            <Shield className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
+            <p className="text-gray-400 text-sm">
+              Only the project owner can access the admin panel.
             </p>
+          </motion.div>
+        </div>
+      </PageTransition>
+    )
+  }
 
-            {claimError && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl px-4 py-3 mb-4">
-                {claimError}
-              </div>
-            )}
-
-            {claimed ? (
-              <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-sm rounded-xl px-4 py-3 mb-4">
-                You are now an admin! Reloading panel...
-              </div>
+  // Owner but not yet admin (profile not updated yet)
+  if (isOwner && !isAdmin) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen pt-24 pb-20 px-4 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 text-center"
+          >
+            <Crown className="w-16 h-16 text-accent mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">Admin Panel</h1>
+            <p className="text-gray-400 text-sm mb-4">
+              Your email is recognized as the owner account. Auto-promoting to admin...
+            </p>
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+            {users.length === 0 ? (
+              <p className="text-xs text-gray-500 mt-4">
+                Please sign out and sign in again to refresh your permissions.
+              </p>
             ) : (
-              <button
-                onClick={handleClaimOwnership}
-                disabled={claiming}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 mx-auto"
-              >
-                {claiming ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Crown className="w-5 h-5" />
-                    Claim Ownership (Set as Admin)
-                  </>
-                )}
-              </button>
+              <p className="text-xs text-green-400 mt-4">Admin status applied! Reloading...</p>
             )}
           </motion.div>
         </div>
@@ -176,7 +143,7 @@ export default function AdminPage() {
     )
   }
 
-  // Admin view
+  // Full admin view
   return (
     <PageTransition>
       <div className="min-h-screen pt-24 pb-20 px-4">

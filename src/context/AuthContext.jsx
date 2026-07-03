@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, isSupabaseReady } from '../lib/supabase.js'
+import { supabase, isSupabaseReady, ADMIN_EMAIL } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
 
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
         setVerifyError(error.message)
       } else if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user.id)
+        fetchProfile(session.user.id, session.user.email)
       } else {
         setLoading(false)
         setVerifying(false)
@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user.id)
+        fetchProfile(session.user.id, session.user.email)
         setVerifying(false)
         setVerifyError('')
         // Clean URL params after successful auth
@@ -73,14 +73,29 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(userId) {
+  async function fetchProfile(userId, email) {
     try {
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
-      setProfile(data)
+
+      // Auto-promote owner to admin if their email matches ADMIN_EMAIL
+      if (data && ADMIN_EMAIL && email === ADMIN_EMAIL && data.role !== 'admin') {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ role: 'admin' })
+          .eq('id', userId)
+
+        if (!updateError) {
+          setProfile({ ...data, role: 'admin' })
+        } else {
+          setProfile(data)
+        }
+      } else {
+        setProfile(data)
+      }
     } catch {
       setProfile({ role: 'free' })
     } finally {
@@ -105,7 +120,6 @@ export function AuthProvider({ children }) {
 
   const signUpWithEmail = useCallback(async (email, password) => {
     if (!isSupabaseReady()) return { error: 'Supabase not configured' }
-    // Use the app's actual URL for the redirect
     const redirectTo = window.location.origin + window.location.pathname
     const { error } = await supabase.auth.signUp({
       email,
@@ -123,11 +137,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   const isAdmin = profile?.role === 'admin'
+  const isOwner = !!(ADMIN_EMAIL && user?.email === ADMIN_EMAIL)
 
   return (
     <AuthContext.Provider value={{
       user, profile, loading, verifying, verifyError,
-      isAdmin, isSupabaseReady: isSupabaseReady(),
+      isAdmin, isOwner, isSupabaseReady: isSupabaseReady(),
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
       setProfile,
     }}>
