@@ -1,16 +1,28 @@
-# React + Vite
+# ViralHooks — Social Media Hook Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Generate viral-worthy hooks for Instagram, TikTok, YouTube, Twitter, and LinkedIn in seconds.
 
-Currently, two official plugins are available:
+🔗 **Live:** https://bhanupratap79.github.io/viralhooks/
+📦 **Stack:** React 19 + Vite 8 + Tailwind CSS v4 + Supabase Auth
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick Start
 
-## React Compiler
+```bash
+npm install
+cp .env.example .env   # add your Supabase creds + admin email
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Project Status
 
-## Expanding the Oxlint configuration
+See [AGENTS.md](./AGENTS.md) for full context — Hermes agents on any machine read this file to pick up where work was left off.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Build
+
+```bash
+GITHUB_PAGES=true npm run build
+```
+
+## Admin Access
+
+Set `VITE_ADMIN_EMAIL` in `.env` to your email. The matching user gets auto-promoted to admin on login.
