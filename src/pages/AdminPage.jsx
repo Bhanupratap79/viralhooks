@@ -1,27 +1,68 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Shield, Search, Mail, ChevronDown } from 'lucide-react'
+import { Shield, Search, Mail, Users, BarChart3, Send, Crown } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import PageTransition from '../components/PageTransition.jsx'
 
 export default function AdminPage() {
-  const { user, isAdmin, loading: authLoading } = useAuth()
+  const { user, profile, isAdmin, loading: authLoading, setProfile } = useAuth()
   const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [notifTitle, setNotifTitle] = useState('')
+  const [notifMsg, setNotifMsg] = useState('')
+  const [sending, setSending] = useState(false)
+  const [notifSent, setNotifSent] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  const [claimError, setClaimError] = useState('')
+  const [claimed, setClaimed] = useState(false)
 
-  useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
-      navigate('/dashboard')
+  async function handleClaimOwnership() {
+    setClaiming(true)
+    setClaimError('')
+    try {
+      // Check if any admin exists
+      const { data: existingAdmins } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+
+      if (existingAdmins && existingAdmins.length > 0) {
+        setClaimError('An admin already exists. Ask them to upgrade your role.')
+        setClaiming(false)
+        return
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setProfile({ ...profile, role: 'admin' })
+      setClaimed(true)
+    } catch (err) {
+      setClaimError(err.message)
     }
-  }, [user, isAdmin, authLoading, navigate])
+    setClaiming(false)
+  }
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    if (!authLoading && !user) {
+      navigate('/login')
+    }
+  }, [user, authLoading, navigate])
+
+  useEffect(() => {
+    if (isAdmin || claimed) {
+      fetchUsers()
+    }
+  }, [isAdmin, claimed])
 
   async function fetchUsers() {
     try {
@@ -38,16 +79,44 @@ export default function AdminPage() {
   }
 
   async function toggleRole(userId, currentRole) {
-    const newRole = currentRole === 'admin' ? 'free' : 'admin'
+    const roles = ['free', 'premium', 'admin']
+    const idx = roles.indexOf(currentRole)
+    const newRole = roles[(idx + 1) % roles.length]
     await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+  }
+
+  async function sendNotification() {
+    if (!notifTitle.trim() || !notifMsg.trim()) return
+    setSending(true)
+    setNotifSent(false)
+    try {
+      await supabase.from('notifications').insert({
+        title: notifTitle.trim(),
+        message: notifMsg.trim(),
+        created_by: user.id,
+        for_role: 'all',
+      })
+      setNotifTitle('')
+      setNotifMsg('')
+      setNotifSent(true)
+      setTimeout(() => setNotifSent(false), 3000)
+    } catch {}
+    setSending(false)
   }
 
   const filtered = users.filter(u =>
     u.email?.toLowerCase().includes(search.toLowerCase())
   )
 
-  if (authLoading || !user || !isAdmin) {
+  const stats = {
+    total: users.length,
+    free: users.filter(u => !u.role || u.role === 'free').length,
+    premium: users.filter(u => u.role === 'premium').length,
+    admins: users.filter(u => u.role === 'admin').length,
+  }
+
+  if (authLoading) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -55,91 +124,232 @@ export default function AdminPage() {
     )
   }
 
+  if (!user) {
+    return null // will redirect to login
+  }
+
+  // Non-admin view: show claim ownership prompt
+  if (!isAdmin && !claimed) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen pt-24 pb-20 px-4 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 text-center"
+          >
+            <Shield className="w-16 h-16 text-accent mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">Admin Panel</h1>
+            <p className="text-gray-400 text-sm mb-6">
+              Only admins can access this page. If you're the project owner, claim ownership below.
+            </p>
+
+            {claimError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl px-4 py-3 mb-4">
+                {claimError}
+              </div>
+            )}
+
+            {claimed ? (
+              <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-sm rounded-xl px-4 py-3 mb-4">
+                You are now an admin! Reloading panel...
+              </div>
+            ) : (
+              <button
+                onClick={handleClaimOwnership}
+                disabled={claiming}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 mx-auto"
+              >
+                {claiming ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Crown className="w-5 h-5" />
+                    Claim Ownership (Set as Admin)
+                  </>
+                )}
+              </button>
+            )}
+          </motion.div>
+        </div>
+      </PageTransition>
+    )
+  }
+
+  // Admin view
   return (
     <PageTransition>
       <div className="min-h-screen pt-24 pb-20 px-4">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <Shield className="w-6 h-6 text-accent" />
             <h1 className="text-3xl font-bold text-white">Admin Panel</h1>
           </div>
-          <p className="text-gray-400 mb-8">Manage users and permissions</p>
+          <p className="text-gray-400 mb-8">Manage users, plans, and send notifications</p>
 
-          <div className="relative mb-6 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by email..."
-              className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
-            />
+          <div className="grid sm:grid-cols-4 gap-4 mb-8">
+            <div className="bg-surface border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                <Users className="w-4 h-4" />
+                Total Users
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.total}</p>
+            </div>
+            <div className="bg-surface border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                <BarChart3 className="w-4 h-4" />
+                Free
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.free}</p>
+            </div>
+            <div className="bg-surface border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 text-primary text-sm mb-1">
+                <BarChart3 className="w-4 h-4" />
+                Premium
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.premium}</p>
+            </div>
+            <div className="bg-surface border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 text-accent text-sm mb-1">
+                <Shield className="w-4 h-4" />
+                Admins
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.admins}</p>
+            </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left text-sm font-medium text-gray-400 px-6 py-4">Email</th>
-                    <th className="text-left text-sm font-medium text-gray-400 px-6 py-4">Role</th>
-                    <th className="text-left text-sm font-medium text-gray-400 px-6 py-4">Joined</th>
-                    <th className="text-right text-sm font-medium text-gray-400 px-6 py-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
-                      </td>
-                    </tr>
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No users found</td>
-                    </tr>
-                  ) : filtered.map((u, i) => (
-                    <motion.tr
-                      key={u.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      className="border-b border-border/50 last:border-0 hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-gray-500" />
-                          <span className="text-white text-sm">{u.email}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                          u.role === 'admin'
-                            ? 'bg-accent/10 text-accent border border-accent/20'
-                            : u.role === 'premium'
-                            ? 'bg-primary/10 text-primary border border-primary/20'
-                            : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
-                        }`}>
-                          {u.role || 'free'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-400">
-                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {u.id !== user.id && (
-                          <button
-                            onClick={() => toggleRole(u.id, u.role)}
-                            className="text-xs font-medium text-primary hover:text-accent transition-colors"
-                          >
-                            {u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                          </button>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+            <div>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search users by email..."
+                  className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Email</th>
+                        <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Role</th>
+                        <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Joined</th>
+                        <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-12 text-center text-gray-500">
+                            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+                          </td>
+                        </tr>
+                      ) : filtered.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-12 text-center text-gray-500">No users found</td>
+                        </tr>
+                      ) : filtered.map((u, i) => (
+                        <motion.tr
+                          key={u.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.02 }}
+                          className="border-b border-border/50 last:border-0 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-500" />
+                              <span className="text-white text-sm">{u.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                              u.role === 'admin'
+                                ? 'bg-accent/10 text-accent border border-accent/20'
+                                : u.role === 'premium'
+                                ? 'bg-primary/10 text-primary border border-primary/20'
+                                : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                            }`}>
+                              {u.role || 'free'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400">
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => toggleRole(u.id, u.role || 'free')}
+                              className="text-xs font-medium text-primary hover:text-accent transition-colors"
+                              title="Cycle role: free → premium → admin"
+                            >
+                              Change
+                            </button>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-surface border border-border rounded-2xl p-6 sticky top-28"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Send className="w-5 h-5 text-accent" />
+                  <h2 className="text-lg font-semibold text-white">Send Notification</h2>
+                </div>
+                <p className="text-xs text-gray-500 mb-4">
+                  Send an announcement to all users. It will appear in their notification bell.
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Title</label>
+                    <input
+                      type="text"
+                      value={notifTitle}
+                      onChange={(e) => setNotifTitle(e.target.value)}
+                      placeholder="e.g., New Feature: Bulk Export"
+                      maxLength={100}
+                      className="w-full bg-dark border border-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Message</label>
+                    <textarea
+                      value={notifMsg}
+                      onChange={(e) => setNotifMsg(e.target.value)}
+                      placeholder="Describe the update..."
+                      rows={3}
+                      maxLength={500}
+                      className="w-full bg-dark border border-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors resize-none"
+                    />
+                    <span className="text-xs text-gray-600">{notifMsg.length}/500</span>
+                  </div>
+                  <button
+                    onClick={sendNotification}
+                    disabled={sending || !notifTitle.trim() || !notifMsg.trim()}
+                    className="w-full bg-gradient-to-r from-primary to-accent text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {sending ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : 'Send to All Users'}
+                  </button>
+                  {notifSent && (
+                    <p className="text-xs text-green-400 text-center">Notification sent!</p>
+                  )}
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>

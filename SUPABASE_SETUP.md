@@ -29,10 +29,21 @@ CREATE TABLE profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Create notifications table
+CREATE TABLE notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Allow users to read their own profile
+-- Allow users to read own profile
 CREATE POLICY "Users can read own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = id);
@@ -48,6 +59,23 @@ CREATE POLICY "Admins can read all profiles"
 CREATE POLICY "Admins can update profiles"
   ON profiles FOR UPDATE
   USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Allow users to read own notifications
+CREATE POLICY "Users can read own notifications"
+  ON notifications FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Allow users to update own notifications (mark as read)
+CREATE POLICY "Users can update own notifications"
+  ON notifications FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Allow admins to insert notifications for any user
+CREATE POLICY "Admins can insert notifications"
+  ON notifications FOR INSERT
+  WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 

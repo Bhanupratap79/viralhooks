@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Globe, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { clearGuestFlag } from '../utils/storage.js'
 import PageTransition from '../components/PageTransition.jsx'
 
 export default function LoginPage() {
@@ -12,9 +13,19 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  async function handleGoogleSignIn() {
+    if (!isSupabaseReady) {
+      setError('Google login is being configured. Use email/password for now.')
+      return
+    }
+    clearGuestFlag()
+    await signInWithGoogle()
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -22,12 +33,17 @@ export default function LoginPage() {
     setMessage('')
 
     if (!isSupabaseReady) {
-      setError('Auth service not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env')
+      setError('Auth service not configured')
       return
     }
 
     if (!email || !password) {
       setError('Email and password are required')
+      return
+    }
+
+    if (mode === 'signup' && !acceptedTerms) {
+      setError('You must accept the Terms & Conditions')
       return
     }
 
@@ -38,6 +54,7 @@ export default function LoginPage() {
       if (err) {
         setError(err.message)
       } else {
+        clearGuestFlag()
         navigate('/dashboard')
       }
     } else {
@@ -69,7 +86,7 @@ export default function LoginPage() {
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h1>
             <p className="text-gray-400 mt-1 text-sm">
-              {mode === 'login' ? 'Sign in to continue generating hooks' : 'Start creating viral hooks today'}
+              {mode === 'login' ? 'Sign in to generate unlimited hooks' : 'Get started for free — no credit card needed'}
             </p>
           </div>
 
@@ -84,6 +101,24 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={!isSupabaseReady || loading}
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors disabled:opacity-50 mb-4"
+          >
+            <Globe className="w-5 h-5" />
+            Continue with Google
+          </button>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-surface px-3 text-gray-500">or continue with email</span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -114,9 +149,24 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {mode === 'signup' && (
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-border bg-dark accent-primary"
+                />
+                <span className="text-xs text-gray-400">
+                  I accept the <span className="text-primary hover:underline">Terms & Conditions</span> and{' '}
+                  <span className="text-primary hover:underline">Privacy Policy</span>. I agree to receive product updates and notifications.
+                </span>
+              </label>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'signup' && !acceptedTerms)}
               className="w-full bg-gradient-to-r from-primary to-accent text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -124,24 +174,6 @@ export default function LoginPage() {
               ) : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-surface px-3 text-gray-500">or continue with</span>
-            </div>
-          </div>
-
-          <button
-            onClick={signInWithGoogle}
-            disabled={!isSupabaseReady}
-            className="w-full flex items-center justify-center gap-3 bg-dark border border-border text-white py-3 rounded-xl font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
-          >
-            <Globe className="w-5 h-5" />
-            Google
-          </button>
 
           <p className="text-center text-sm text-gray-500 mt-6">
             {mode === 'login' ? (

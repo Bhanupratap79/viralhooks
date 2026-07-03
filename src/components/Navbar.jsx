@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Sparkles, Menu, X, User, LogOut, Shield } from 'lucide-react';
+import { Sparkles, Menu, X, User, LogOut, Shield, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 const links = [
   { to: '/', label: 'Home' },
@@ -40,31 +41,48 @@ export default function Navbar() {
             {loading ? (
               <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             ) : user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 bg-surface border border-border text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/5 transition-colors"
+              <div className="flex items-center gap-3">
+                {/* Visible Dashboard link */}
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
                 >
-                  <User className="w-4 h-4" />
-                  {user.email?.split('@')[0]}
-                </button>
-                <AnimatePresence>
-                  {userMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl overflow-hidden shadow-xl"
-                    >
-                      <Link
-                        to="/dashboard"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+                {/* Visible Admin link for all logged-in users */}
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </Link>
+                <NotificationBell />
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 bg-surface border border-border text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-white/5 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    {user.email?.split('@')[0]}
+                  </button>
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl overflow-hidden shadow-xl"
                       >
-                        <User className="w-4 h-4" />
-                        Dashboard
-                      </Link>
-                      {isAdmin && (
+                        <Link
+                          to="/dashboard"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                          Dashboard
+                        </Link>
                         <Link
                           to="/admin"
                           onClick={() => setUserMenuOpen(false)}
@@ -73,17 +91,17 @@ export default function Navbar() {
                           <Shield className="w-4 h-4" />
                           Admin Panel
                         </Link>
-                      )}
-                      <button
-                        onClick={() => { signOut(); setUserMenuOpen(false) }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors border-t border-border"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        <button
+                          onClick={() => { signOut(); setUserMenuOpen(false) }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors border-t border-border"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             ) : (
               <Link
@@ -95,13 +113,16 @@ export default function Navbar() {
             )}
           </div>
 
-          <button
-            className="md:hidden text-white p-2"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            {user && <NotificationBell />}
+            <button
+              className="text-white p-2"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -136,15 +157,13 @@ export default function Navbar() {
                   >
                     Dashboard
                   </Link>
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      onClick={() => setMobileOpen(false)}
-                      className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                    >
-                      Admin
-                    </Link>
-                  )}
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                  >
+                    Admin
+                  </Link>
                   <button
                     onClick={() => { signOut(); setMobileOpen(false) }}
                     className="text-sm font-medium text-red-400 transition-colors text-left"

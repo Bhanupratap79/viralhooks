@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, LogIn, LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const containerVariants = {
   hidden: {},
@@ -21,6 +22,8 @@ const stats = [
 ];
 
 export default function Hero() {
+  const { user, loading } = useAuth();
+
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-20 overflow-hidden">
       <div className="absolute inset-0 -z-10">
@@ -76,6 +79,25 @@ export default function Hero() {
             Start Generating
             <ArrowRight className="w-5 h-5" />
           </Link>
+
+          {!loading && user ? (
+            <Link
+              to="/dashboard"
+              className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <LogIn className="w-5 h-5" />
+              Sign In
+            </Link>
+          )}
+
           <button
             onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
             className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors"

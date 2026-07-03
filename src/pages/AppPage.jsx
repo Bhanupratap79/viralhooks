@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Bookmark, X } from 'lucide-react';
+import { Sparkles, Bookmark } from 'lucide-react';
 import PageTransition from '../components/PageTransition.jsx';
 import PlatformSelector from '../components/PlatformSelector.jsx';
 import ToneSelector from '../components/ToneSelector.jsx';
@@ -9,11 +9,15 @@ import ResultsGrid from '../components/ResultsGrid.jsx';
 import SavedHooksPanel from '../components/SavedHooksPanel.jsx';
 import DailyCounter from '../components/DailyCounter.jsx';
 import Toast from '../components/Toast.jsx';
+import LoginPromptModal from '../components/LoginPromptModal.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { generateHooks } from '../utils/generator.js';
+import { GUEST_LIMIT, FREE_DAILY_LIMIT } from '../utils/storage.js';
 
 export default function AppPage() {
-  const { canGenerate, generate, canGenerate: genAllowed, showToast, savedHooks } = useApp();
+  const { user } = useAuth();
+  const { dailyCount, guestUsed, savedHooks, showToast, showLoginPrompt, generate, generateGuest, hideLoginPrompt } = useApp();
 
   const [platform, setPlatform] = useState('instagram');
   const [topic, setTopic] = useState('');
@@ -23,13 +27,22 @@ export default function AppPage() {
   const [loading, setLoading] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
 
+  const canGenerate = user
+    ? user.role === 'premium' || user.role === 'admin' || dailyCount < FREE_DAILY_LIMIT
+    : !guestUsed;
+
   const handleGenerate = useCallback(async () => {
     if (!topic || topic.trim().length < 3) {
       showToast('Please enter a topic (min 3 characters)');
       return;
     }
-    if (!genAllowed) {
-      showToast('Daily limit reached. Upgrade to Premium!');
+
+    if (!canGenerate) {
+      if (user) {
+        showToast('Daily limit reached. Upgrade to Premium!');
+      } else {
+        showLoginPrompt();
+      }
       return;
     }
 
@@ -38,13 +51,19 @@ export default function AppPage() {
 
     const generated = generateHooks(topic.trim(), platform, tone, hookType, 5);
     setHooks(generated);
-    generate();
+
+    if (!user) {
+      generateGuest();
+    } else {
+      generate();
+    }
+
     setLoading(false);
 
     if (generated.length === 0) {
       showToast('No hooks found for this combination. Try different options.');
     }
-  }, [topic, platform, tone, hookType, genAllowed, generate, showToast]);
+  }, [topic, platform, tone, hookType, canGenerate, user, generate, generateGuest, showToast, showLoginPrompt]);
 
   const charCount = topic.length;
 
@@ -144,6 +163,12 @@ export default function AppPage() {
                       </>
                     )}
                   </button>
+
+                  {!user && !guestUsed && (
+                    <p className="text-xs text-center text-gray-500">
+                      You have {GUEST_LIMIT} free try. <span className="text-primary">Sign in</span> for unlimited.
+                    </p>
+                  )}
                 </div>
               </motion.div>
 
@@ -168,6 +193,7 @@ export default function AppPage() {
         </div>
 
         <Toast />
+        <LoginPromptModal />
       </div>
     </PageTransition>
   );

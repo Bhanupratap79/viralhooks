@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase, isSupabaseReady } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
@@ -7,6 +8,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
 
   useEffect(() => {
     if (!isSupabaseReady()) {
@@ -14,23 +17,56 @@ export function AuthProvider({ children }) {
       return
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+    // Check if this is an auth callback (code in URL)
+    const params = new URLSearchParams(window.location.search)
+    const hasAuthCode = params.has('code')
+    const hasError = params.get('error')
+
+    if (hasError) {
+      setVerifyError(params.get('error_description') || 'Verification failed')
+      setLoading(false)
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+      return
+    }
+
+    if (hasAuthCode) {
+      setVerifying(true)
+    }
+
+    // Initialize session (this handles PKCE code exchange internally)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        setVerifyError(error.message)
+      } else if (session?.user) {
         setUser(session.user)
         fetchProfile(session.user.id)
       } else {
         setLoading(false)
+        setVerifying(false)
+        // Clean URL params if any
+        if (hasAuthCode) {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+        }
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user)
         fetchProfile(session.user.id)
+        setVerifying(false)
+        setVerifyError('')
+        // Clean URL params after successful auth
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+        }
       } else {
         setUser(null)
         setProfile(null)
         setLoading(false)
+        setVerifying(false)
       }
     })
 
@@ -49,12 +85,16 @@ export function AuthProvider({ children }) {
       setProfile({ role: 'free' })
     } finally {
       setLoading(false)
+      setVerifying(false)
     }
   }
 
   const signInWithGoogle = useCallback(async () => {
     if (!isSupabaseReady()) return
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname },
+    })
   }, [])
 
   const signInWithEmail = useCallback(async (email, password) => {
@@ -65,10 +105,12 @@ export function AuthProvider({ children }) {
 
   const signUpWithEmail = useCallback(async (email, password) => {
     if (!isSupabaseReady()) return { error: 'Supabase not configured' }
+    // Use the app's actual URL for the redirect
+    const redirectTo = window.location.origin + window.location.pathname
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: redirectTo },
     })
     return { error }
   }, [])
@@ -83,9 +125,14 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <AuthContext value={{ user, profile, loading, isAdmin, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, isSupabaseReady: isSupabaseReady() }}>
+    <AuthContext.Provider value={{
+      user, profile, loading, verifying, verifyError,
+      isAdmin, isSupabaseReady: isSupabaseReady(),
+      signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
+      setProfile,
+    }}>
       {children}
-    </AuthContext>
+    </AuthContext.Provider>
   )
 }
 

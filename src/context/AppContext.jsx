@@ -1,14 +1,16 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { getSavedHooks, saveHook, removeHook, getDailyCount, incrementDailyCount, DAILY_LIMIT } from '../utils/storage.js';
+import { getSavedHooks, saveHook, removeHook, getDailyCount, incrementDailyCount, resetDailyCount, isGuestUsed, markGuestUsed, clearGuestFlag, GUEST_LIMIT, FREE_DAILY_LIMIT } from '../utils/storage.js';
+import { supabase, isSupabaseReady } from '../lib/supabase.js';
 
 const AppContext = createContext(null);
 
 const initialState = {
   savedHooks: [],
   dailyCount: 0,
+  guestUsed: false,
   theme: 'dark',
-  isPremium: false,
   toast: null,
+  showLoginPrompt: false,
 };
 
 function reducer(state, action) {
@@ -29,8 +31,10 @@ function reducer(state, action) {
       return { ...state, dailyCount: action.payload };
     case 'INCREMENT_COUNT':
       return { ...state, dailyCount: state.dailyCount + 1 };
-    case 'SET_PREMIUM':
-      return { ...state, isPremium: action.payload };
+    case 'SET_GUEST_USED':
+      return { ...state, guestUsed: action.payload };
+    case 'SHOW_LOGIN_PROMPT':
+      return { ...state, showLoginPrompt: action.payload };
     case 'SHOW_TOAST':
       return { ...state, toast: action.payload };
     case 'HIDE_TOAST':
@@ -46,6 +50,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     dispatch({ type: 'SET_SAVED_HOOKS', payload: getSavedHooks() });
     dispatch({ type: 'SET_DAILY_COUNT', payload: getDailyCount() });
+    dispatch({ type: 'SET_GUEST_USED', payload: isGuestUsed() });
   }, []);
 
   useEffect(() => {
@@ -63,28 +68,40 @@ export function AppProvider({ children }) {
     return state.savedHooks.some(h => h.id === hookId);
   }, [state.savedHooks]);
 
-  const canGenerate = state.isPremium || state.dailyCount < DAILY_LIMIT;
-
-  const generate = useCallback(() => {
-    if (!state.isPremium) {
-      const newCount = incrementDailyCount();
-      dispatch({ type: 'SET_DAILY_COUNT', payload: newCount });
-    }
-  }, [state.isPremium]);
-
   const showToast = useCallback((message) => {
     dispatch({ type: 'SHOW_TOAST', payload: message });
+  }, []);
+
+  const showLoginPrompt = useCallback(() => {
+    dispatch({ type: 'SHOW_LOGIN_PROMPT', payload: true });
+  }, []);
+
+  const hideLoginPrompt = useCallback(() => {
+    dispatch({ type: 'SHOW_LOGIN_PROMPT', payload: false });
+  }, []);
+
+  const generate = useCallback(() => {
+    const newCount = incrementDailyCount();
+    dispatch({ type: 'SET_DAILY_COUNT', payload: newCount });
+  }, []);
+
+  const generateGuest = useCallback(() => {
+    markGuestUsed();
+    dispatch({ type: 'SET_GUEST_USED', payload: true });
   }, []);
 
   return (
     <AppContext value={{
       ...state,
-      DAILY_LIMIT,
+      DAILY_LIMIT: FREE_DAILY_LIMIT,
+      GUEST_LIMIT,
       toggleSaveHook,
       isHookSaved,
-      canGenerate,
       generate,
+      generateGuest,
       showToast,
+      showLoginPrompt,
+      hideLoginPrompt,
       dispatch,
     }}>
       {children}

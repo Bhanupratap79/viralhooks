@@ -1,6 +1,7 @@
 const SAVED_HOOKS_KEY = 'viralhooks_saved';
 const DAILY_COUNT_KEY = 'viralhooks_daily';
 const DAILY_DATE_KEY = 'viralhooks_date';
+const GUEST_USED_KEY = 'viralhooks_guest_used';
 
 function getToday() {
   return new Date().toISOString().split('T')[0];
@@ -65,5 +66,25 @@ export function incrementDailyCount() {
   }
 }
 
-export const DAILY_LIMIT = 5;
+export function resetDailyCount() {
+  try {
+    localStorage.setItem(DAILY_DATE_KEY, getToday());
+    localStorage.setItem(DAILY_COUNT_KEY, '0');
+  } catch {}
+}
+
+export function isGuestUsed() {
+  return localStorage.getItem(GUEST_USED_KEY) === 'true';
+}
+
+export function markGuestUsed() {
+  localStorage.setItem(GUEST_USED_KEY, 'true');
+}
+
+export function clearGuestFlag() {
+  localStorage.removeItem(GUEST_USED_KEY);
+}
+
+export const GUEST_LIMIT = 1;
+export const FREE_DAILY_LIMIT = 5;
 export const PREMIUM_DAILY_LIMIT = 999;
