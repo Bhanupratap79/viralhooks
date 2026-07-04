@@ -35,23 +35,36 @@ export function AuthProvider({ children }) {
       if (hasAuthCode) {
         setVerifying(true)
 
-        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(window.location.href)
+        // Try manual PKCE exchange first; newer SDK may auto-exchange during init
+        const { data: { session: exchangeSession }, error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(window.location.href)
 
         window.history.replaceState({}, '', window.location.pathname + window.location.hash)
 
-        if (error) {
-          setVerifyError(error.message)
-          setLoading(false)
-          setVerifying(false)
-          return
+        let session = exchangeSession
+
+        // If manual exchange failed, SDK might have auto-exchanged already
+        if (!session && exchangeError) {
+          const { data } = await supabase.auth.getSession()
+          session = data.session
         }
 
         if (session?.user) {
           setUser(session.user)
           await fetchProfile(session.user.id, session.user.email)
+          navigate('/dashboard')
           setLoading(false)
           setVerifying(false)
-          shouldNavigateDashboard = true
+          return
+        }
+
+        // No session at all — show error and fall through
+        if (exchangeError) {
+          setVerifyError(exchangeError.message)
+          setLoading(false)
+          setVerifying(false)
+          initHandled.current = false
+          return
         }
       }
 
