@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
           setLoading(false)
           setVerifying(false)
           initHandled.current = false
-          navigate('/dashboard')
+          window.location.hash = '#/dashboard'
           return
         }
       }
@@ -62,6 +62,8 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         setUser(session.user)
         await fetchProfile(session.user.id, session.user.email)
+        setLoading(false)
+        setVerifying(false)
       } else {
         setLoading(false)
         setVerifying(false)
