@@ -23,9 +23,9 @@ function AppFallback() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <HashRouter>
+    <HashRouter>
+      <AuthProvider>
+        <AppProvider>
           <div className="min-h-screen bg-dark flex flex-col">
             <Navbar />
             <main className="flex-1">
@@ -43,8 +43,8 @@ export default function App() {
             <Footer />
             <Toast />
           </div>
-        </HashRouter>
-      </AppProvider>
-    </AuthProvider>
+        </AppProvider>
+      </AuthProvider>
+    </HashRouter>
   );
 }

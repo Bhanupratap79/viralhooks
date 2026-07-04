@@ -42,6 +42,11 @@ export default function LoginPage() {
       return
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     if (mode === 'signup' && !acceptedTerms) {
       setError('You must accept the Terms & Conditions')
       return
@@ -52,7 +57,14 @@ export default function LoginPage() {
     if (mode === 'login') {
       const { error: err } = await signInWithEmail(email, password)
       if (err) {
-        setError(err.message)
+        const msg = err.message?.toLowerCase() || ''
+        if (msg.includes('invalid login credentials')) {
+          setError('Invalid email or password. If you haven\'t registered yet, please sign up first.')
+        } else if (msg.includes('email not confirmed')) {
+          setError('Please check your email inbox and click the verification link before signing in.')
+        } else {
+          setError(err.message)
+        }
       } else {
         clearGuestFlag()
         navigate('/dashboard')
@@ -60,9 +72,16 @@ export default function LoginPage() {
     } else {
       const { error: err } = await signUpWithEmail(email, password)
       if (err) {
-        setError(err.message)
+        const msg = err.message?.toLowerCase() || ''
+        if (msg.includes('already registered')) {
+          setError('This email is already registered. Please sign in instead.')
+        } else if (msg.includes('weak password')) {
+          setError('Password is too weak. Please use at least 6 characters with a mix of letters and numbers.')
+        } else {
+          setError(err.message)
+        }
       } else {
-        setMessage('Check your email for a confirmation link!')
+        setMessage('Account created! Check your email for a verification link to activate your account.')
       }
     }
 

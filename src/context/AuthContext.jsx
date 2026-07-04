@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, isSupabaseReady, ADMIN_EMAIL } from '../lib/supabase.js'
 
@@ -10,6 +10,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState('')
+  const navigate = useNavigate()
+  const initHandled = useRef(false)
 
   useEffect(() => {
     if (!isSupabaseReady()) {
@@ -18,35 +20,41 @@ export function AuthProvider({ children }) {
     }
 
     async function init() {
-      // Check if this is an auth callback (code in URL)
       const params = new URLSearchParams(window.location.search)
       const hasAuthCode = params.has('code')
-      const hasError = params.get('error')
+      const hasErrorParam = params.get('error')
 
-      if (hasError) {
-        setVerifyError(params.get('error_description') || 'Verification failed')
+      if (hasErrorParam) {
+        setVerifyError(params.get('error_description') || 'Authentication failed - please try again')
         setLoading(false)
         window.history.replaceState({}, '', window.location.pathname + window.location.hash)
         return
       }
 
       if (hasAuthCode) {
+        initHandled.current = true
         setVerifying(true)
-        // Explicitly exchange the PKCE code for a session
+
         const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(window.location.href)
+
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+
         if (error) {
           setVerifyError(error.message)
           setLoading(false)
           setVerifying(false)
-        } else if (session?.user) {
+          initHandled.current = false
+          return
+        }
+
+        if (session?.user) {
           setUser(session.user)
           await fetchProfile(session.user.id, session.user.email)
-          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+          navigate('/dashboard')
           return
         }
       }
 
-      // Try to get existing session
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         setUser(session.user)
@@ -54,24 +62,21 @@ export function AuthProvider({ children }) {
       } else {
         setLoading(false)
         setVerifying(false)
-        if (hasAuthCode) {
-          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-        }
       }
     }
 
     init()
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && initHandled.current) {
+        initHandled.current = false
+        return
+      }
+
       if (session?.user) {
         setUser(session.user)
         fetchProfile(session.user.id, session.user.email)
-        setVerifying(false)
         setVerifyError('')
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-        }
       } else {
         setUser(null)
         setProfile(null)
@@ -81,37 +86,46 @@ export function AuthProvider({ children }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
   async function fetchProfile(userId, email) {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
-      // Auto-promote owner to admin if their email matches ADMIN_EMAIL
-      if (data && ADMIN_EMAIL && email === ADMIN_EMAIL && data.role !== 'admin') {
-        const { error: updateError } = await supabase
+      if (error && error.code === 'PGRST116') {
+        const { data: newProfile } = await supabase
           .from('profiles')
-          .update({ role: 'admin' })
-          .eq('id', userId)
+          .insert({ id: userId, email, role: 'free' })
+          .select()
+          .single()
 
-        if (!updateError) {
+        if (newProfile) {
+          if (ADMIN_EMAIL && email === ADMIN_EMAIL) {
+            await supabase.from('profiles').update({ role: 'admin' }).eq('id', userId)
+            setProfile({ ...newProfile, role: 'admin' })
+          } else {
+            setProfile(newProfile)
+          }
+          return
+        }
+      }
+
+      if (data) {
+        if (ADMIN_EMAIL && email === ADMIN_EMAIL && data.role !== 'admin') {
+          await supabase.from('profiles').update({ role: 'admin' }).eq('id', userId)
           setProfile({ ...data, role: 'admin' })
         } else {
           setProfile(data)
         }
-      } else {
-        setProfile(data)
+        return
       }
-    } catch {
-      setProfile({ role: 'free' })
-    } finally {
-      setLoading(false)
-      setVerifying(false)
-    }
+    } catch {}
+
+    setProfile({ role: 'free' })
   }
 
   const signInWithGoogle = useCallback(async () => {
@@ -144,7 +158,8 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
-  }, [])
+    navigate('/')
+  }, [navigate])
 
   const isAdmin = profile?.role === 'admin'
   const isOwner = !!(ADMIN_EMAIL && user?.email === ADMIN_EMAIL)
