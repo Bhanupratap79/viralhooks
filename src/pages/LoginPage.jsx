@@ -70,7 +70,7 @@ export default function LoginPage() {
         navigate('/dashboard')
       }
     } else {
-      const { error: err } = await signUpWithEmail(email, password)
+      const { error: err, data } = await signUpWithEmail(email, password)
       if (err) {
         const msg = err.message?.toLowerCase() || ''
         if (msg.includes('already registered')) {
@@ -80,6 +80,9 @@ export default function LoginPage() {
         } else {
           setError(err.message)
         }
+      } else if (data?.session) {
+        clearGuestFlag()
+        navigate('/dashboard')
       } else {
         setMessage('Account created! Check your email for a verification link to activate your account.')
       }

@@ -23,6 +23,7 @@ export function AuthProvider({ children }) {
       const params = new URLSearchParams(window.location.search)
       const hasAuthCode = params.has('code')
       const hasErrorParam = params.get('error')
+      let shouldNavigateDashboard = false
 
       if (hasErrorParam) {
         setVerifyError(params.get('error_description') || 'Authentication failed - please try again')
@@ -32,7 +33,6 @@ export function AuthProvider({ children }) {
       }
 
       if (hasAuthCode) {
-        initHandled.current = true
         setVerifying(true)
 
         const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(window.location.href)
@@ -43,7 +43,6 @@ export function AuthProvider({ children }) {
           setVerifyError(error.message)
           setLoading(false)
           setVerifying(false)
-          initHandled.current = false
           return
         }
 
@@ -52,36 +51,38 @@ export function AuthProvider({ children }) {
           await fetchProfile(session.user.id, session.user.email)
           setLoading(false)
           setVerifying(false)
-          initHandled.current = false
-          window.location.hash = '#/dashboard'
-          return
+          shouldNavigateDashboard = true
         }
       }
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        setUser(session.user)
-        await fetchProfile(session.user.id, session.user.email)
-        setLoading(false)
-        setVerifying(false)
-      } else {
-        setLoading(false)
-        setVerifying(false)
+      if (!shouldNavigateDashboard) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          setUser(session.user)
+          await fetchProfile(session.user.id, session.user.email)
+          setLoading(false)
+          setVerifying(false)
+        } else {
+          setLoading(false)
+          setVerifying(false)
+        }
+      }
+
+      if (shouldNavigateDashboard) {
+        navigate('/dashboard')
       }
     }
 
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && initHandled.current) {
-        initHandled.current = false
-        return
-      }
-
       if (session?.user) {
         setUser(session.user)
         fetchProfile(session.user.id, session.user.email)
         setVerifyError('')
+        if (event === 'SIGNED_IN' && !hasCodeParam()) {
+          navigate('/dashboard')
+        }
       } else {
         setUser(null)
         setProfile(null)
@@ -92,6 +93,10 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe()
   }, [navigate])
+
+  function hasCodeParam() {
+    return new URLSearchParams(window.location.search).has('code')
+  }
 
   async function fetchProfile(userId, email) {
     try {
@@ -150,12 +155,17 @@ export function AuthProvider({ children }) {
   const signUpWithEmail = useCallback(async (email, password) => {
     if (!isSupabaseReady()) return { error: 'Supabase not configured' }
     const redirectTo = window.location.origin + window.location.pathname
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: redirectTo },
     })
-    return { error }
+    if (!error && data?.session) {
+      setUser(data.session.user)
+      await fetchProfile(data.session.user.id, data.session.user.email)
+      setLoading(false)
+    }
+    return { error, data }
   }, [])
 
   const signOut = useCallback(async () => {
