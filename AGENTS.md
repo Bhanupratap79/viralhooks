@@ -1,6 +1,6 @@
 # ViralHooks — Micro-SaaS Social Media Hook Generator
 
-## Current State (Last Updated: 2026-07-03)
+## Current State (Last Updated: 2026-07-04)
 
 ViralHooks is a React 19 + Vite 8 + Tailwind v4 static SPA that generates attention-grabbing social media hooks. Fully client-side — no backend needed.
 
@@ -22,10 +22,10 @@ ViralHooks is a React 19 + Vite 8 + Tailwind v4 static SPA that generates attent
 - Navbar with Login/Dashboard/Admin links for authenticated users
 
 ### Supabase Auth (fully integrated)
-- Login/Signup with email/password
-- Google OAuth
+- Login/Signup with email/password — working with `mailer_autoconfirm: true`
+- Google OAuth — latest fix deployed (refactored navigate in init + SIGNED_IN handler)
 - AuthContext with session management and PKCE callback handling
-- Email verification flow works — `exchangeCodeForSession()` on callback
+- OAuth redirect: `hasCodeParam()`, `shouldNavigateDashboard` flag, `navigate('/dashboard')` in both init() and onAuthStateChange
 
 ### Admin Panel (secure)
 - Located at `/admin` route
@@ -35,13 +35,20 @@ ViralHooks is a React 19 + Vite 8 + Tailwind v4 static SPA that generates attent
 - Admin features: user table with role management, send notifications to all users, stats dashboard
 
 ### Deploy
-- Built and pushed to `gh-pages` branch
+- Built and pushed to `gh-pages` branch (with `.nojekyll`)
 - Live at GitHub Pages URL above
 - All code pushed to `master` branch
+- Deploy Bot (bot@viralhooks.app) auto-builds from master; avoid direct gh-pages pushes (breaks built-in workflow)
+- Live site verified serving latest build (index-B-0ESs0E.js with refactored OAuth)
 
 ---
 
 ## 🔧 What's Pending / Next Steps
+
+### 0. Google OAuth Fix — Test & Verify
+- Latest refactored code deployed: `hasCodeParam()` helper, `shouldNavigateDashboard` flag, `navigate('/dashboard')` in init() outside code exchange block, and in onAuthStateChange SIGNED_IN handler
+- User needs to test Google signup/login flow
+- If still broken, check: Supabase OAuth redirect URL config, browser console errors, PKCE code verifier in localStorage
 
 ### 1. Supabase Database Setup (HIGH PRIORITY)
 SQL exists in `setup.sql` but was **never executed** against Supabase. Run it via Supabase SQL Editor or the Management API. Creates:
