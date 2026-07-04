@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Zap, Layers, Copy, Heart, BarChart3, Globe } from 'lucide-react';
+import { Zap, Layers, Copy, Heart, BarChart3, Globe, Sparkles } from 'lucide-react';
 import Hero from '../components/Hero.jsx';
 import HowItWorks from '../components/HowItWorks.jsx';
 import FeatureCard from '../components/FeatureCard.jsx';
@@ -30,9 +30,12 @@ export default function LandingPage() {
     <div>
       <Hero />
 
-      <HowItWorks />
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent -z-10" />
+        <HowItWorks />
+      </div>
 
-      <section className="py-20 px-4">
+      <section id="features" className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -40,6 +43,10 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
+            <div className="inline-flex items-center gap-2 bg-surface/50 border border-border/50 rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-sm text-gray-300">Features</span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
               Everything You Need to Go Viral
             </h2>
@@ -55,7 +62,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-20 px-4 bg-white/[0.02]">
+      <section className="py-20 px-4 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -63,6 +70,10 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
+            <div className="inline-flex items-center gap-2 bg-surface/50 border border-border/50 rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-sm text-gray-300">Preview</span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
               See It in Action
             </h2>
@@ -78,9 +89,9 @@ export default function LandingPage() {
           <div className="text-center mt-10">
             <Link
               to="/app"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-8 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity"
+              className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-8 py-3 rounded-xl font-semibold hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/25"
             >
-              Try the Generator <Zap className="w-5 h-5" />
+              Try the Generator <Zap className="w-5 h-5 group-hover:rotate-12 transition-transform" />
             </Link>
           </div>
         </div>
@@ -94,6 +105,10 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
+            <div className="inline-flex items-center gap-2 bg-surface/50 border border-border/50 rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-sm text-gray-300">Pricing</span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
               Simple, Transparent Pricing
             </h2>
@@ -128,7 +143,7 @@ export default function LandingPage() {
                 'No daily limits',
               ]}
               isPremium
-              ctaText="Coming Soon - $9/mo"
+              ctaText="Coming Soon"
               ctaLink="/premium"
             />
           </div>
@@ -137,12 +152,15 @@ export default function LandingPage() {
 
       <Faq />
 
-      <section className="py-16 px-4 text-center bg-gradient-to-r from-primary/20 to-accent/20">
+      <section className="py-16 px-4 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 -z-10" />
+        <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-primary/20 rounded-full blur-[80px] -z-10" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-[100px] -z-10" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="max-w-3xl mx-auto"
+          className="max-w-3xl mx-auto relative"
         >
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Ready to Create Viral Hooks?
@@ -152,9 +170,9 @@ export default function LandingPage() {
           </p>
           <Link
             to="/app"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-10 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity"
+            className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white px-10 py-4 rounded-full font-semibold text-lg hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/30"
           >
-            Start Generating Free <Zap className="w-5 h-5" />
+            Start Generating Free <Zap className="w-5 h-5 group-hover:rotate-12 transition-transform" />
           </Link>
         </motion.div>
       </section>

@@ -36,7 +36,7 @@ const stepVariants = {
 
 export default function HowItWorks() {
   return (
-    <section id="features" className="py-20 px-4">
+    <section id="how-it-works" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -58,18 +58,21 @@ export default function HowItWorks() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-100px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-8 relative"
         >
-          {steps.map((step) => (
+          {steps.map((step, index) => (
             <motion.div
               key={step.number}
               variants={stepVariants}
-              className="relative bg-surface border border-border rounded-2xl p-8 text-center"
+              className="relative bg-surface/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 text-center hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
             >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent text-white text-sm font-bold flex items-center justify-center">
+              {index < steps.length - 1 && (
+                <div className="hidden md:block absolute top-1/3 -right-4 w-8 h-0.5 bg-gradient-to-r from-primary/50 to-accent/50" />
+              )}
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent text-white text-sm font-bold flex items-center justify-center shadow-lg shadow-primary/30">
                 {step.number}
               </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-5 mt-2">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-5 mt-2 group-hover:scale-110 transition-transform">
                 <step.icon className="w-7 h-7 text-accent" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-3">{step.title}</h3>

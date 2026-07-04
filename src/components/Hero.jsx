@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, LogIn, LayoutDashboard } from 'lucide-react';
+import { ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -35,22 +35,18 @@ export default function Hero() {
             backgroundSize: '200% 200%',
           }}
         />
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/20 rounded-full blur-[100px] animate-pulse-glow" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/15 rounded-full blur-[120px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/3 right-1/3 w-48 h-48 bg-purple-500/10 rounded-full blur-[80px] animate-pulse-glow" style={{ animationDelay: '4s' }} />
       </div>
-      <style>{`
-        @keyframes heroGradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
 
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-4xl mx-auto text-center"
+        className="max-w-4xl mx-auto text-center relative"
       >
-        <motion.div variants={itemVariants} className="inline-flex items-center gap-2 bg-surface border border-border rounded-full px-4 py-1.5 mb-6">
+        <motion.div variants={itemVariants} className="inline-flex items-center gap-2 bg-surface/70 backdrop-blur-sm border border-border/50 rounded-full px-4 py-1.5 mb-6">
           <Sparkles className="w-4 h-4 text-accent" />
           <span className="text-sm text-gray-300">AI-Powered Hook Generator</span>
         </motion.div>
@@ -60,7 +56,7 @@ export default function Hero() {
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
         >
           Create Viral-Worthy{' '}
-          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Hooks</span>{' '}
+          <span className="bg-gradient-to-r from-primary via-purple-400 to-accent bg-clip-text text-transparent">Hooks</span>{' '}
           in Seconds
         </motion.h1>
 
@@ -68,42 +64,34 @@ export default function Hero() {
           variants={itemVariants}
           className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10"
         >
-          Stop staring at a blank page. Generate attention-grabbing hooks for Instagram, TikTok, YouTube, and more with the power of AI.
+          Stop staring at a blank page. Generate attention-grabbing hooks for Instagram, TikTok, YouTube, and more instantly.
         </motion.p>
 
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             to="/app"
-            className="bg-gradient-to-r from-primary to-accent text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="group relative bg-gradient-to-r from-primary to-accent text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:opacity-90 transition-all duration-300 flex items-center gap-2 shadow-lg shadow-primary/25"
           >
-            Start Generating
-            <ArrowRight className="w-5 h-5" />
+            <span>Start Generating</span>
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
 
           {!loading && user ? (
             <Link
               to="/dashboard"
-              className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+              className="bg-white/5 backdrop-blur-sm border border-white/10 text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
             >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
             </Link>
           ) : (
-            <Link
-              to="/login"
-              className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            <button
+              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              className="bg-white/5 backdrop-blur-sm border border-white/10 text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-all duration-300"
             >
-              <LogIn className="w-5 h-5" />
-              Sign In
-            </Link>
+              See Examples
+            </button>
           )}
-
-          <button
-            onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-surface border border-border text-white px-8 py-3.5 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors"
-          >
-            See Examples
-          </button>
         </motion.div>
       </motion.div>
 
